@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Live Voice Translator</title>
+</head>
+<body>
+  <h2>Bangla ↔ Filipino Live Voice Translator</h2>
+
+  <button onclick="startListening()">Start Talking</button>
+  <p><strong>You Said:</strong> <span id="original"></span></p>
+  <p><strong>Translated:</strong> <span id="translated"></span></p>
+
+  <script>
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'bn-BD';
+    recognition.interimResults = false;
+
+    recognition.onresult = async function(event) {
+      const speechText = event.results[0][0].transcript;
+      document.getElementById("original").innerText = speechText;
+
+      const translatedText = await translateText(speechText);
+      document.getElementById("translated").innerText = translatedText;
+
+      speak(translatedText, 'fil-PH');
+    };
+
+    function startListening() {
+      recognition.start();
+    }
+
+    async function translateText(text) {
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${text}&langpair=bn|tl`
+      );
+      const data = await response.json();
+      return data.responseData.translatedText;
+    }
+
+    function speak(text, lang) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      speechSynthesis.speak(utterance);
+    }
+  </script>
+</body>
+</html>
