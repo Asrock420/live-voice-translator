@@ -5,44 +5,114 @@
   <title>Live Voice Translator</title>
 </head>
 <body>
-  <h2>Bangla ↔ Filipino Live Voice Translator</h2>
 
-  <button onclick="startListening()">Start Talking</button>
-  <p><strong>You Said:</strong> <span id="original"></span></p>
-  <p><strong>Translated:</strong> <span id="translated"></span></p>
+<h2>Live Voice Translator (Bangla ↔ Filipino)</h2>
 
-  <script>
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+<select id="role">
+  <option value="bn">I Speak Bangla</option>
+  <option value="tl">I Speak Filipino</option>
+</select>
+
+<br><br>
+<button onclick="startListening()">Start Talking</button>
+
+<p><strong>You Said:</strong> <span id="original"></span></p>
+<p><strong>Translated:</strong> <span id="translated"></span></p>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// ✅ Your Firebase Config (Already Added)
+const firebaseConfig = {
+  apiKey: "AIzaSyD0C-82DBnvvOIl5-gUe9g0yw2F8x3qIGQ",
+  authDomain: "live-voice-translator-246d4.firebaseapp.com",
+  databaseURL: "https://live-voice-translator-246d4-default-rtdb.firebaseio.com/",
+  projectId: "live-voice-translator-246d4",
+  storageBucket: "live-voice-translator-246d4.firebasestorage.app",
+  messagingSenderId: "822824698662",
+  appId: "1:822824698662:web:291e2be193698c408af7e7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ✅ Fixed Default Room
+const ROOM_ID = "forever_room";
+
+const roomRef = ref(db, 'rooms/' + ROOM_ID);
+
+// Listen for incoming messages
+onValue(roomRef, (snapshot) => {
+  const data = snapshot.val();
+  if (data && data.message) {
+    speak(data.message.text, data.message.lang);
+  }
+});
+
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.interimResults = false;
+
+window.startListening = function() {
+  const role = document.getElementById("role").value;
+
+  if(role === "bn"){
     recognition.lang = 'bn-BD';
-    recognition.interimResults = false;
+  } else {
+    recognition.lang = 'tl-PH';
+  }
 
-    recognition.onresult = async function(event) {
-      const speechText = event.results[0][0].transcript;
-      document.getElementById("original").innerText = speechText;
+  recognition.start();
+}
 
-      const translatedText = await translateText(speechText);
-      document.getElementById("translated").innerText = translatedText;
+recognition.onresult = async function(event) {
 
-      speak(translatedText, 'fil-PH');
-    };
+  const role = document.getElementById("role").value;
+  const speechText = event.results[0][0].transcript;
 
-    function startListening() {
-      recognition.start();
+  document.getElementById("original").innerText = speechText;
+
+  let translatedText = "";
+  let targetLang = "";
+  let speakLang = "";
+
+  if(role === "bn"){
+    translatedText = await translateText(speechText, "bn|tl");
+    targetLang = "fil-PH";
+    speakLang = "fil-PH";
+  } else {
+    translatedText = await translateText(speechText, "tl|bn");
+    targetLang = "bn-BD";
+    speakLang = "bn-BD";
+  }
+
+  document.getElementById("translated").innerText = translatedText;
+
+  set(roomRef, {
+    message: {
+      text: translatedText,
+      lang: speakLang
     }
+  });
 
-    async function translateText(text) {
-      const response = await fetch(
-        `https://api.mymemory.translated.net/get?q=${text}&langpair=bn|tl`
-      );
-      const data = await response.json();
-      return data.responseData.translatedText;
-    }
+}
 
-    function speak(text, lang) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      speechSynthesis.speak(utterance);
-    }
-  </script>
+async function translateText(text, langpair) {
+  const response = await fetch(
+    `https://api.mymemory.translated.net/get?q=${text}&langpair=${langpair}`
+  );
+  const data = await response.json();
+  return data.responseData.translatedText;
+}
+
+function speak(text, lang) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = lang;
+  speechSynthesis.speak(utterance);
+}
+
+</script>
+
 </body>
 </html>
